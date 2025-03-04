@@ -1,4 +1,4 @@
-# @base/mcp-server
+# base-network-mcp-server
 
 This is an MCP server for the Base network. It allows LLMs to perform blockchain operations on the Base network through natural language commands, including wallet management, balance checking, and transaction execution.
 
@@ -58,7 +58,7 @@ To add your Base MCP server to Claude Desktop, add the following configuration t
       "command": "npx",
       "args": [
         "-y",
-        "@base/mcp-server"
+        "base-network-mcp-server"
       ],
       "env": {
         "BASE_PROVIDER_URL": "https://api.developer.coinbase.com/rpc/v1/base/YOUR_API_KEY",
@@ -84,11 +84,11 @@ If you're building your own MCP client, you can connect to the Base MCP server p
 ## Installation
 
 ```bash
-npm i @base/mcp-server
+npm i base-network-mcp-server
 # or
-yarn add @base/mcp-server
+yarn add base-network-mcp-server
 # or
-pnpm add @base/mcp-server
+pnpm add base-network-mcp-server
 ```
 
 ## Example
@@ -98,7 +98,7 @@ The following example uses the StreamTransport to connect directly between an MC
 ```javascript
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamTransport } from '@modelcontextprotocol/sdk/client/stream.js';
-import { BaseMcpServer } from '@base/mcp-server';
+import { BaseMcpServer } from 'base-network-mcp-server';
 
 // Create a stream transport for both client and server
 const clientTransport = new StreamTransport();

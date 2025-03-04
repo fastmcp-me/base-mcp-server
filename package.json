@@ -1,5 +1,5 @@
 {
-  "name": "@base/mcp-server",
+  "name": "base-network-mcp-server",
   "version": "0.1.0",
   "description": "Model Context Protocol server for Base network blockchain operations",
   "main": "dist/index.js",
