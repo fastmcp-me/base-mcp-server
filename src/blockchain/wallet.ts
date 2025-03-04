@@ -1,7 +1,9 @@
 import { Wallet, WalletStore } from '../types.js';
-import { publicClient, chainId, chainName } from './provider.js';
+import { chain, publicClient } from './provider.js';
+import { createWalletClient, http, formatEther } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { generatePrivateKey } from 'viem/accounts';
 import dotenv from 'dotenv';
-import crypto from 'crypto';
 
 // Load environment variables
 dotenv.config();
@@ -12,17 +14,16 @@ const walletStore: WalletStore = {};
 // Initialize default wallet from environment if available
 if (process.env.WALLET_PRIVATE_KEY) {
   try {
-    const privateKey = process.env.WALLET_PRIVATE_KEY;
-    // Generate a deterministic address from the private key
-    const address = `0x${crypto.createHash('sha256').update(privateKey).digest('hex').substring(0, 40)}`;
+    const privateKey = process.env.WALLET_PRIVATE_KEY as `0x${string}`;
+    const account = privateKeyToAccount(privateKey);
     
     walletStore['default'] = {
-      address,
-      privateKey,
+      address: account.address,
+      privateKey: privateKey,
       name: 'default'
     };
     
-    console.log(`Initialized default wallet: ${address}`);
+    console.log(`Initialized default wallet: ${account.address}`);
   } catch (error) {
     console.error('Error initializing default wallet:', error);
   }
@@ -35,17 +36,16 @@ if (process.env.WALLET_PRIVATE_KEY) {
  */
 export function createWallet(name?: string): Wallet {
   // Generate a random private key
-  const privateKey = `0x${crypto.randomBytes(32).toString('hex')}`;
-  // Generate a deterministic address from the private key
-  const address = `0x${crypto.createHash('sha256').update(privateKey).digest('hex').substring(0, 40)}`;
+  const privateKey = generatePrivateKey();
+  const account = privateKeyToAccount(privateKey);
   
   // Use provided name or generate a random one
   const walletName = name || `wallet_${Object.keys(walletStore).length + 1}`;
   
   // Store the wallet
   const wallet: Wallet = {
-    address,
-    privateKey,
+    address: account.address,
+    privateKey: privateKey,
     name: walletName
   };
   
@@ -104,11 +104,10 @@ export async function getWalletBalance(nameOrAddress: string): Promise<string> {
   
   try {
     const balance = await publicClient.getBalance({
-      address: wallet.address
+      address: wallet.address as `0x${string}`
     });
     
-    // Convert from wei to ETH (1 ETH = 10^18 wei)
-    return (Number(balance) / 1e18).toString();
+    return formatEther(balance);
   } catch (error) {
     console.error(`Error getting balance for wallet ${wallet.address}:`, error);
     throw error;
@@ -127,17 +126,11 @@ export function getWalletClient(nameOrAddress: string): any {
     throw new Error(`Wallet not found: ${nameOrAddress}`);
   }
   
-  // Create a simple wallet client
-  return {
-    account: {
-      address: wallet.address,
-      privateKey: wallet.privateKey
-    },
-    async sendTransaction(params: any): Promise<string> {
-      console.log(`Mock sending transaction from ${params.account.address} to ${params.to} with value ${params.value}`);
-      // Generate a random transaction hash
-      const txHash = `0x${crypto.randomBytes(32).toString('hex')}`;
-      return txHash;
-    }
-  };
+  const account = privateKeyToAccount(wallet.privateKey as `0x${string}`);
+  
+  return createWalletClient({
+    account,
+    chain,
+    transport: http()
+  });
 }

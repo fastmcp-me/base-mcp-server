@@ -1,6 +1,7 @@
 import { TransactionRequest, TransactionResponse } from '../types.js';
 import { publicClient, getCurrentGasPrice } from './provider.js';
 import { getWalletClient, getDefaultWallet, getWallet } from './wallet.js';
+import { parseEther, formatEther } from 'viem';
 
 /**
  * Send a transaction on the Base network
@@ -19,8 +20,8 @@ export async function sendTransaction(request: TransactionRequest): Promise<Tran
     
     const walletClient = getWalletClient(walletName);
     
-    // Convert ETH value to wei (1 ETH = 10^18 wei)
-    const valueInWei = BigInt(parseFloat(request.value) * 1e18);
+    // Convert ETH value to wei
+    const valueInWei = parseEther(request.value);
     
     // Get current gas price if not specified
     const gasPrice = request.gasPrice 
@@ -32,7 +33,7 @@ export async function sendTransaction(request: TransactionRequest): Promise<Tran
     // Send transaction
     const hash = await walletClient.sendTransaction({
       account: walletClient.account,
-      to: request.to,
+      to: request.to as `0x${string}`,
       value: valueInWei,
       gasPrice: gasPrice,
       gas: request.gasLimit ? BigInt(request.gasLimit) : undefined
@@ -62,7 +63,7 @@ export async function sendTransaction(request: TransactionRequest): Promise<Tran
 export async function getTransaction(txHash: string): Promise<TransactionResponse | null> {
   try {
     const tx = await publicClient.getTransaction({
-      hash: txHash
+      hash: txHash as `0x${string}`
     });
     
     if (!tx) {
@@ -70,14 +71,14 @@ export async function getTransaction(txHash: string): Promise<TransactionRespons
     }
     
     const receipt = await publicClient.getTransactionReceipt({
-      hash: txHash
+      hash: txHash as `0x${string}`
     });
     
     return {
       hash: txHash,
       from: tx.from,
       to: tx.to || '',
-      value: (Number(tx.value) / 1e18).toString(), // Convert from wei to ETH
+      value: formatEther(tx.value),
       blockNumber: receipt?.blockNumber,
       status: receipt?.status === 'success' ? 'confirmed' : 'failed'
     };
@@ -101,12 +102,11 @@ export async function estimateGas(request: TransactionRequest): Promise<string> 
       throw new Error(`Sender wallet not found: ${walletName}`);
     }
     
-    // Convert ETH value to wei (1 ETH = 10^18 wei)
-    const valueInWei = BigInt(parseFloat(request.value) * 1e18);
+    const valueInWei = parseEther(request.value);
     
     const gasEstimate = await publicClient.estimateGas({
-      account: wallet.address,
-      to: request.to,
+      account: wallet.address as `0x${string}`,
+      to: request.to as `0x${string}`,
       value: valueInWei
     });
     
