@@ -1,110 +1,67 @@
-# Base MCP Server
+# @base/mcp-server
 
-A Model Context Protocol (MCP) service for the Base network that transforms complex blockchain operations into simple, natural language interactions.
+This is an MCP server for the Base network. It allows LLMs to perform blockchain operations on the Base network through natural language commands, including wallet management, balance checking, and transaction execution.
 
-## Features
+This server works with both Base Mainnet and Base Sepolia testnet.
 
-- **Natural Language Command Processing**: Execute blockchain operations using simple English commands
-- **Wallet Management**: Create and manage multiple wallets
-- **Transaction Execution**: Send ETH to any address with simple commands
-- **Balance Checking**: Check wallet balances easily
+## Tools
 
-## Implementation Notes
+The following tools are available:
 
-### Real Blockchain Implementation
+### process_command
 
-This implementation uses real blockchain interactions with the Base network through the Coinbase API. It:
+Processes a natural language command for Base network operations. It accepts the following arguments:
 
-- Creates real wallets with cryptographically secure private keys
-- Retrieves actual wallet balances from the blockchain
-- Sends real transactions to the Base network
-- Gets real-time gas prices and estimates
+- `command`: The natural language command to process (e.g., "Send 0.5 ETH to 0x1234...")
 
-This allows for actual blockchain operations to be performed through natural language commands.
+It returns a structured response with the result of the operation, including transaction details for send operations, balance information for balance checks, and wallet details for wallet creation.
 
-### Security Considerations
+### create_wallet
 
-Since this implementation interacts with real blockchain networks and handles private keys:
+Creates a new wallet on the Base network. It accepts the following arguments:
 
-1. **Private Key Security**: Store private keys securely and never commit them to version control
-2. **Use Testnet First**: Start with Base Sepolia testnet before moving to mainnet
-3. **Transaction Validation**: Always validate transaction parameters before sending
-4. **Error Handling**: Implement robust error handling for network issues
-5. **Rate Limiting**: Be aware of API rate limits when making frequent requests
+- `name`: (Optional) A name for the wallet
 
-## Prerequisites
+It returns an object containing the wallet address, name, and other details.
 
-- Node.js 16+
-- Access to Base network (mainnet or testnet)
+### check_balance
 
-## Installation
+Checks the balance of a wallet on the Base network. It accepts the following arguments:
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/base-mcp-server.git
-   cd base-mcp-server
-   ```
+- `wallet`: (Optional) The wallet name or address to check (defaults to the primary wallet)
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+It returns the wallet balance in ETH.
 
-3. Create a `.env` file based on the example:
-   ```
-   cp .env.example .env
-   ```
+### list_wallets
 
-4. Edit the `.env` file with your configuration:
-   ```
-   # Base Network Provider URL
-   BASE_PROVIDER_URL=https://api.developer.coinbase.com/rpc/v1/base/ByeAFq6UvTNv18icKsOugFww7BO10Ez0
-   
-   # Wallet Private Key (for testing only, use secure storage in production)
-   WALLET_PRIVATE_KEY=your_private_key_here
-   ```
+Lists all available wallets.
 
-5. Build the project:
-   ```
-   npm run build
-   ```
+It returns an array of wallet objects, each containing the wallet address, name, and other details.
 
 ## Usage
 
-### Running the Server
+### With Claude Desktop
 
-Start the MCP server:
+Claude Desktop is a popular LLM client that supports the Model Context Protocol. You can connect your Base MCP server to Claude Desktop to perform blockchain operations via natural language commands.
 
-```
-npm start
-```
+You can add MCP servers to Claude Desktop via its config file at:
 
-### Testing the Server
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
-For quick testing without integrating with an AI assistant, you can use the included test script:
-
-```
-npm run test
-```
-
-This will start an interactive test client that allows you to:
-1. Create wallets
-2. Check wallet balances
-3. Send transactions
-4. Process natural language commands
-
-### MCP Integration
-
-To use this MCP server with Claude or other AI assistants, add it to your MCP settings:
+To add your Base MCP server to Claude Desktop, add the following configuration to the `mcpServers` object in the config file:
 
 ```json
 {
   "mcpServers": {
     "base": {
-      "command": "node",
-      "args": ["/path/to/base-mcp-server/dist/index.js"],
+      "command": "npx",
+      "args": [
+        "-y",
+        "@base/mcp-server"
+      ],
       "env": {
-        "BASE_PROVIDER_URL": "https://api.developer.coinbase.com/rpc/v1/base/ByeAFq6UvTNv18icKsOugFww7BO10Ez0",
+        "BASE_PROVIDER_URL": "https://api.developer.coinbase.com/rpc/v1/base/YOUR_API_KEY",
         "WALLET_PRIVATE_KEY": "your_private_key_here"
       },
       "disabled": false,
@@ -114,50 +71,97 @@ To use this MCP server with Claude or other AI assistants, add it to your MCP se
 }
 ```
 
-### Available Commands
+### Configuration
+
+- `BASE_PROVIDER_URL`: The URL of the Base network provider (Mainnet or Sepolia)
+- `WALLET_PRIVATE_KEY`: Your wallet private key for authentication and transaction signing
+- `DEFAULT_GAS_PRICE`: (Optional) Default gas price in Gwei
+
+### Programmatically (custom MCP client)
+
+If you're building your own MCP client, you can connect to the Base MCP server programmatically using your preferred transport. The MCP SDK offers built-in stdio and SSE transports.
+
+## Installation
+
+```bash
+npm i @base/mcp-server
+# or
+yarn add @base/mcp-server
+# or
+pnpm add @base/mcp-server
+```
+
+## Example
+
+The following example uses the StreamTransport to connect directly between an MCP client and server:
+
+```javascript
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamTransport } from '@modelcontextprotocol/sdk/client/stream.js';
+import { BaseMcpServer } from '@base/mcp-server';
+
+// Create a stream transport for both client and server
+const clientTransport = new StreamTransport();
+const serverTransport = new StreamTransport();
+
+// Connect the streams together
+clientTransport.readable.pipeTo(serverTransport.writable);
+serverTransport.readable.pipeTo(clientTransport.writable);
+
+const client = new Client(
+  {
+    name: 'MyClient',
+    version: '0.1.0',
+  },
+  {
+    capabilities: {},
+  }
+);
+
+// Create and configure the Base MCP server
+const server = new BaseMcpServer({
+  providerUrl: 'https://api.developer.coinbase.com/rpc/v1/base/YOUR_API_KEY',
+  privateKey: 'your_private_key_here',
+});
+
+// Connect the client and server to their respective transports
+await server.connect(serverTransport);
+await client.connect(clientTransport);
+
+// Call tools
+const output = await client.callTool({
+  name: 'process_command',
+  arguments: {
+    command: 'Check my wallet balance',
+  },
+});
+
+console.log(output);
+// Example output:
+// {
+//   "success": true,
+//   "message": "Balance of wallet \"default\": 1.5 ETH",
+//   "balance": "1.5",
+//   "wallet": "default"
+// }
+```
+
+## Example Commands
 
 Once integrated, you can use natural language commands like:
 
-- **Create a wallet**: `Create a new wallet for savings`
-- **Check balance**: `Check my wallet balance` or `What's the balance of my savings wallet?`
-- **Send ETH**: `Send 0.1 ETH to 0x1234...` or `Transfer 0.5 ETH from my savings wallet to 0xABCD...`
+- "Create a new wallet for savings"
+- "Check my wallet balance"
+- "What's the balance of my savings wallet?"
+- "Send 0.1 ETH to 0x1234567890123456789012345678901234567890"
+- "Transfer 0.5 ETH from my savings wallet to 0xABCD..."
 
-## Project Structure
+## Security Considerations
 
-```
-base-mcp-server/
-├── src/
-│   ├── blockchain/       # Blockchain integration
-│   │   ├── provider.ts   # Network provider setup
-│   │   ├── wallet.ts     # Wallet management
-│   │   └── transaction.ts # Transaction handling
-│   ├── nlp/              # Natural language processing
-│   │   ├── parser.ts     # Command parsing
-│   │   └── intents.ts    # Intent recognition
-│   ├── mcp/              # MCP server implementation
-│   │   ├── server.ts     # MCP server setup
-│   │   └── tools.ts      # MCP tools implementation
-│   ├── types.ts          # TypeScript type definitions
-│   └── index.ts          # Entry point
-├── examples/             # Integration examples
-│   └── nextjs-integration/ # Next.js integration example
-├── .env.example          # Example environment variables
-├── test.js               # Interactive test client
-└── package.json          # Project configuration
-```
+Since this implementation interacts with real blockchain networks and handles private keys:
 
-## Next Steps
-
-To further enhance this implementation, you could:
-
-1. Add support for token transfers beyond just ETH
-2. Implement more complex DeFi operations
-3. Add support for NFT interactions
-4. Implement multi-chain support
-5. Add comprehensive error handling
-6. Create detailed documentation
-
-## License
-
-MIT
-# base-mcp-server
+1. **Private Key Security**: Store private keys securely and never commit them to version control
+2. **Use Testnet First**: Start with Base Sepolia testnet before moving to mainnet
+3. **Transaction Validation**: Always validate transaction parameters before sending
+4. **Error Handling**: Implement robust error handling for network issues
+5. **Rate Limiting**: Be aware of API rate limits when making frequent requests
